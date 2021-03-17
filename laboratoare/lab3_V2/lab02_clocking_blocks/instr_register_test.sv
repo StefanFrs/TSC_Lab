@@ -3,22 +3,19 @@
  * The course labs will convert this to an object-oriented testbench
  * with constrained random test generation, functional coverage, and
  * a scoreboard for self-verification.
+ *
+ * SystemVerilog Training Workshop.
+ * Copyright 2006, 2013 by Sutherland HDL, Inc.
+ * Tualatin, Oregon, USA.  All rights reserved.
+ * www.sutherland-hdl.com
  **********************************************************************/
 
 module instr_register_test (tb_ifc ifc);  // interface port
-  import instr_register_pkg::*;  // user-defined types are defined in instr_register_pkg.sv
-  (input  logic          clk,
-   output logic          load_en,
-   output logic          reset_n,
-   output operand_t      operand_a,
-   output operand_t      operand_b,
-   output opcode_t       opcode,
-   output address_t      write_pointer,
-   output address_t      read_pointer,
-   input  instruction_t  instruction_word
-  );
 
   timeunit 1ns/1ns;
+
+  // user-defined types are defined in instr_register_pkg.sv
+  import instr_register_pkg::*;
 
   int seed = 555;
 
@@ -30,32 +27,32 @@ module instr_register_test (tb_ifc ifc);  // interface port
     $display(    "***********************************************************");
 
     $display("\nReseting the instruction register...");
-    write_pointer  = 5'h00;         // initialize write pointer
-    read_pointer   = 5'h1F;         // initialize read pointer
-    load_en        = 1'b0;          // initialize load control line
-    reset_n       <= 1'b0;          // assert reset_n (active low)
-    repeat (2) @(posedge clk) ;     // hold in reset for 2 clock cycles
-    reset_n        = 1'b1;          // deassert reset_n (active low)
+    ifc.cb.write_pointer <= 5'h00;      // initialize write pointer
+    ifc.cb.read_pointer  <= 5'h1F;      // initialize read pointer
+    ifc.cb.load_en       <= 1'b0;       // initialize load control line
+    ifc.cb.reset_n       <= 1'b0;       // assert reset_n (active low)
+    repeat (2) @(ifc.cb) ;  // hold in reset for 2 clock cycles
+    ifc.cb.reset_n       <= 1'b1;       // assert reset_n (active low)
 
     $display("\nWriting values to register stack...");
-    @(posedge clk) load_en = 1'b1;  // enable writing to register
+    @(ifc.cb) ifc.load_en <= 1'b1;  // enable writing to register
     repeat (3) begin
-      @(posedge clk) randomize_transaction;
-      @(negedge clk) print_transaction;
+      @( ifc.cb) randomize_transaction;
+      @( ifc.cb) print_transaction;
     end
-    @(posedge clk) load_en = 1'b0;  // turn-off writing to register
+    @(ifc.cb) ifc.load_en = 1'b0;  // turn-off writing to register
 
     // read back and display same three register locations
     $display("\nReading back the same register locations written...");
     for (int i=0; i<=2; i++) begin
-      // later labs will replace this loop with iterating through a
-      // scoreboard to determine which addresses were written and
-      // the expected values to be read back
-      @(posedge clk) read_pointer = i;
-      @(negedge clk) print_results;
+      // A later lab will replace this loop with iterating through a
+      // scoreboard to determine which address were written and the
+      // expected values to be read back
+      @( ifc.cb) ifc.read_pointer = i;
+      @( ifc.cb) print_results;
     end
 
-    @(posedge clk) ;
+    @( ifc.cb) ;
     $display("\n***********************************************************");
     $display(  "***  THIS IS NOT A SELF-CHECKING TESTBENCH (YET).  YOU  ***");
     $display(  "***  NEED TO VISUALLY VERIFY THAT THE OUTPUT VALUES     ***");
@@ -73,24 +70,24 @@ module instr_register_test (tb_ifc ifc);  // interface port
     // write_pointer values in a later lab
     //
     static int temp = 0;
-    operand_a     <= $random(seed)%16;                 // between -15 and 15
-    operand_b     <= $unsigned($random)%16;            // between 0 and 15
-    opcode        <= opcode_t'($unsigned($random)%8);  // between 0 and 7, cast to opcode_t type
-    write_pointer <= temp++;
+    ifc.cb.operand_a     <= $random(seed)%16;                 // between -15 and 15
+    ifc.cb.operand_b     <= $unsigned($random)%16;            // between 0 and 15
+    ifc.cb.opcode        <= opcode_t'($unsigned($random)%8);  // between 0 and 7, cast to opcode_t type
+    ifc.cb.write_pointer <= temp++;
   endfunction: randomize_transaction
 
   function void print_transaction;
-    $display("Writing to register location %0d: ", write_pointer);
-    $display("  opcode = %0d (%s)", opcode, opcode.name);
-    $display("  operand_a = %0d",   operand_a);
-    $display("  operand_b = %0d\n", operand_b);
+    $display("Writing to register location %0d: ", ifc.write_pointer);
+    $display("  opcode = %0d (%s)", ifc.opcode, ifc.opcode.name);
+    $display("  operand_a = %0d",   ifc.operand_a);
+    $display("  operand_b = %0d\n", ifc.operand_b);
   endfunction: print_transaction
 
   function void print_results;
-    $display("Read from register location %0d: ", read_pointer);
-    $display("  opcode = %0d (%s)", instruction_word.opc, instruction_word.opc.name);
-    $display("  operand_a = %0d",   instruction_word.op_a);
-    $display("  operand_b = %0d\n", instruction_word.op_b);
+    $display("Read from register location %0d: ", ifc.read_pointer);
+    $display("  opcode = %0d (%s)", ifc.instruction_word.opc, ifc.instruction_word.opc.name);
+    $display("  operand_a = %0d",   ifc.instruction_word.op_a);
+    $display("  operand_b = %0d\n", ifc.instruction_word.op_b);
   endfunction: print_results
 
 endmodule: instr_register_test
